@@ -1,3 +1,4 @@
+import { hasValidRequestOrigin } from "@/server/auth/origin";
 import { NextResponse } from "next/server";
 import { requireCurrentUser } from "@/server/auth/requireCurrentUser";
 import { createConversationWithFirstPersonMessage } from
@@ -8,6 +9,7 @@ type CreateConversationRequest = {
 content?: unknown;
 };
 export async function POST(request: Request) {
+if (!hasValidRequestOrigin(request)) return Response.json({ error: { message: "Invalid request origin." } }, { status: 403 });
 const user = await requireCurrentUser();
 let body: CreateConversationRequest;
 try {
