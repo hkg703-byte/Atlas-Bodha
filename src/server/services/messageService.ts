@@ -49,6 +49,8 @@ const conversation = conversationResult.rows[0];
 if (!conversation) {
 return null;
 }
+const active = await client.query("SELECT id FROM assistant_generations WHERE conversation_id = $1 AND status = 'pending' AND expires_at > NOW()", [conversationId]);
+if (active.rowCount) throw new Error("Atlas is already responding.");
 /*
 * Since this Conversation is locked for this transaction,
 * another append cannot simultaneously calculate the same

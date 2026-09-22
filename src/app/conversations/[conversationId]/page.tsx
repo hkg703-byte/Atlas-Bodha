@@ -1,8 +1,6 @@
 import { notFound } from "next/navigation";
-import { ConversationComposer } from
-"@/components/conversation/ConversationComposer";
-import { ConversationView } from
-"@/components/conversation/ConversationView";
+import { ConversationExperience } from
+"@/components/conversation/ConversationExperience";
 import { AppShell } from "@/components/layout/AppShell";
 import { requireCurrentUser } from "@/server/auth/requireCurrentUser";
 import { findConversationById } from
@@ -34,17 +32,16 @@ user.id,
 );
 return (
 <AppShell>
-<div className="flex min-h-0 flex-1 flex-col">
-<ConversationView
-messages={messages}
-/>
-<div className="sticky bottom-0 bg-[var(--atlas-color-background)]
-pb-2 pt-4">
-<ConversationComposer
+<ConversationExperience
 conversationId={conversation.id}
+messages={messages.map((message) => ({
+id: message.id,
+sequenceNumber: message.sequence_number,
+role: message.role,
+content: message.content,
+safetyTier: message.safety_tier,
+}))}
 />
-</div>
-</div>
 </AppShell>
 );
 }

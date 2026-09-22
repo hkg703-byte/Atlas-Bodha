@@ -7,6 +7,8 @@ useState,
 import { useRouter } from "next/navigation";
 type ConversationComposerProps = {
 conversationId: string;
+disabled?: boolean;
+onMessageSaved?: () => Promise<void> | void;
 };
 type CreateMessageResponse = {
 data?: {
@@ -26,6 +28,8 @@ message: string;
 };
 export function ConversationComposer({
 conversationId,
+disabled = false,
+onMessageSaved,
 }: ConversationComposerProps) {
 const router = useRouter();
 const [message, setMessage] = useState("");
@@ -37,7 +41,7 @@ const [pendingIdempotencyKey, setPendingIdempotencyKey] =
 useState<string | null>(null);
 async function submitMessage() {
 const content = message.trim();
-if (!content || isSubmitting) {
+if (!content || isSubmitting || disabled) {
 return;
 }
 const idempotencyKey =
@@ -74,6 +78,7 @@ setMessage("");
 * which retrieves canonical Messages again.
 */
 router.refresh();
+await onMessageSaved?.();
 } catch (error) {
 const message =
 error instanceof Error
@@ -132,14 +137,16 @@ setErrorMessage(null);
 onKeyDown={handleKeyDown}
 placeholder="Continue the conversation..."
 rows={1}
-disabled={isSubmitting}
+disabled={isSubmitting || disabled}
+enterKeyHint="send"
+autoFocus
 className="min-h-12 flex-1 border-0 bg-transparent p-3 outline-none
 disabled:opacity-60"
 />
 <button
 type="submit"
 disabled={
-!message.trim() || isSubmitting
+!message.trim() || isSubmitting || disabled
 }
 className="min-h-11 rounded-lg px-5 text-white transition-opacity
 disabled:cursor-default disabled:opacity-40"

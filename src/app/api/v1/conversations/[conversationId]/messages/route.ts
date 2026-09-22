@@ -1,3 +1,4 @@
+import { hasValidRequestOrigin } from "@/server/auth/origin";
 import { listMessagesForUserConversation } from "@/server/repositories/messageRepository";
 import { NextResponse } from "next/server";
 import { requireCurrentUser } from "@/server/auth/requireCurrentUser";
@@ -16,6 +17,7 @@ export async function POST(
 request: Request,
 context: RouteContext,
 ) {
+if (!hasValidRequestOrigin(request)) return Response.json({ error: { message: "Invalid request origin." } }, { status: 403 });
 const user = await requireCurrentUser();
 const { conversationId } = await context.params;
 let body: CreateMessageRequest;
@@ -116,6 +118,7 @@ message.sequence_number,
 role: message.role,
 content: message.content,
 createdAt: message.created_at,
+safetyTier: message.safety_tier,
 })),
 },
 });

@@ -126,6 +126,12 @@ background: "var(--atlas-color-accent)",
 {isSubmitting ? "Sending…" : "Send"}
 </button>
 </form>
+<p
+className="mt-2 whitespace-nowrap text-center text-xs"
+style={{ color: "var(--atlas-color-text-secondary)" }}
+>
+Atlas is an AI, not a person or a therapist.
+</p>
 {errorMessage ? (
 <p
 role="alert"

@@ -7,6 +7,7 @@ sequence_number: string;
 role: MessageRole;
 content: string;
 created_at: Date;
+safety_tier: number | null;
 };
 export async function listMessagesForUserConversation(
 conversationId: string,
@@ -20,7 +21,8 @@ m.conversation_id,
 m.sequence_number,
 m.role,
 m.content,
-m.created_at
+m.created_at,
+m.safety_tier
 FROM messages m
 INNER JOIN conversations c
 ON c.id = m.conversation_id
