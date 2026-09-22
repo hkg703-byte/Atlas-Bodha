@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { ConversationView } from
 "@/components/conversation/ConversationView";
 import { AppShell } from "@/components/layout/AppShell";
-import { env } from "@/lib/env";
+import { requireCurrentUser } from "@/server/auth/requireCurrentUser";
 import { findConversationById } from
 "@/server/repositories/conversationRepository";
 import { listMessagesForUserConversation } from
@@ -15,11 +15,12 @@ conversationId: string;
 export default async function ConversationPage({
 params,
 }: ConversationPageProps) {
+const user = await requireCurrentUser();
 const { conversationId } = await params;
 const conversation =
 await findConversationById(
 conversationId,
-env.devUserId,
+user.id,
 );
 if (!conversation) {
 notFound();
@@ -27,7 +28,7 @@ notFound();
 const messages =
 await listMessagesForUserConversation(
 conversation.id,
-env.devUserId,
+user.id,
 );
 return (
 <AppShell>

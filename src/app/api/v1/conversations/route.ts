@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { env } from "@/lib/env";
+import { requireCurrentUser } from "@/server/auth/requireCurrentUser";
 import { createConversationWithFirstPersonMessage } from
 "@/server/services/conversationService";
 import { validateFirstMessage } from
@@ -8,6 +8,7 @@ type CreateConversationRequest = {
 content?: unknown;
 };
 export async function POST(request: Request) {
+const user = await requireCurrentUser();
 let body: CreateConversationRequest;
 try {
 body = (await request.json()) as CreateConversationRequest;
@@ -41,7 +42,7 @@ status: 400,
 try {
 const conversation =
 await createConversationWithFirstPersonMessage(
-env.devUserId,
+user.id,
 validation.content,
 );
 return NextResponse.json(
