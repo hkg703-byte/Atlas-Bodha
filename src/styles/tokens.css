@@ -1,0 +1,31 @@
+:root {
+  /* Color */
+  --atlas-color-background: #f5f3ed;
+  --atlas-color-surface: #ffffff;
+  --atlas-color-text-primary: #242722;
+  --atlas-color-text-secondary: #686d64;
+  --atlas-color-border: #d9ddd4;
+  --atlas-color-accent: #556b57;
+  --atlas-color-accent-hover: #445647;
+
+  /* Spacing */
+  --atlas-space-1: 0.25rem;
+  --atlas-space-2: 0.5rem;
+  --atlas-space-3: 0.75rem;
+  --atlas-space-4: 1rem;
+  --atlas-space-5: 1.5rem;
+  --atlas-space-6: 2rem;
+  --atlas-space-7: 3rem;
+  --atlas-space-8: 4rem;
+
+  /* Radius */
+  --atlas-radius-small: 0.625rem;
+  --atlas-radius-medium: 1.125rem;
+  --atlas-radius-large: 1.75rem;
+
+  /* Layout */
+  --atlas-content-width: 48rem;
+
+  /* Motion */
+  --atlas-transition-fast: 150ms ease;
+}
