@@ -8,23 +8,30 @@ role: MessageRole;
 content: string;
 created_at: Date;
 };
-export async function listMessages(
+export async function listMessagesForUserConversation(
 conversationId: string,
+userId: string,
 ): Promise<MessageRecord[]> {
 const result = await queryDatabase<MessageRecord>(
 `
 SELECT
-id,
-conversation_id,
-sequence_number,
-role,
-content,
-created_at
-FROM messages
-WHERE conversation_id = $1
-ORDER BY sequence_number ASC;
+m.id,
+m.conversation_id,
+m.sequence_number,
+m.role,
+m.content,
+m.created_at
+FROM messages m
+INNER JOIN conversations c
+ON c.id = m.conversation_id
+WHERE m.conversation_id = $1
+AND c.user_id = $2
+ORDER BY m.sequence_number ASC;
 `,
-[conversationId],
+[
+conversationId,
+userId,
+],
 );
 return result.rows;
 }

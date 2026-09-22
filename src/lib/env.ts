@@ -7,4 +7,5 @@ return value;
 }
 export const env = {
 databaseUrl: requireEnvironmentVariable("DATABASE_URL"),
+devUserId: requireEnvironmentVariable("ATLAS_DEV_USER_ID"),
 };
