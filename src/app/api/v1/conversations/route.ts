@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { requireCurrentUser } from "@/server/auth/requireCurrentUser";
 import { createConversationWithFirstPersonMessage } from
 "@/server/services/conversationService";
-import { validateFirstMessage } from
-"@/server/validation/conversationValidation";
+import { validatePersonMessage } from
+"@/server/validation/messageValidation";
 type CreateConversationRequest = {
 content?: unknown;
 };
@@ -25,7 +25,7 @@ status: 400,
 },
 );
 }
-const validation = validateFirstMessage(body.content);
+const validation = validatePersonMessage(body.content);
 if (!validation.valid) {
 return NextResponse.json(
 {

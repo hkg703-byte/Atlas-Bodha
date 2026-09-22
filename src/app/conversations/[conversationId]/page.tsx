@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { ConversationComposer } from
+"@/components/conversation/ConversationComposer";
 import { ConversationView } from
 "@/components/conversation/ConversationView";
 import { AppShell } from "@/components/layout/AppShell";
@@ -32,7 +34,17 @@ user.id,
 );
 return (
 <AppShell>
-<ConversationView messages={messages} />
+<div className="flex min-h-0 flex-1 flex-col">
+<ConversationView
+messages={messages}
+/>
+<div className="sticky bottom-0 bg-[var(--atlas-color-background)]
+pb-2 pt-4">
+<ConversationComposer
+conversationId={conversation.id}
+/>
+</div>
+</div>
 </AppShell>
 );
 }

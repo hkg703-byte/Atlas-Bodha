@@ -1,5 +1,5 @@
 const MAX_MESSAGE_LENGTH = 20_000;
-export type FirstMessageValidationResult =
+export type MessageValidationResult =
 | {
 valid: true;
 content: string;
@@ -8,9 +8,9 @@ content: string;
 valid: false;
 error: string;
 };
-export function validateFirstMessage(
+export function validatePersonMessage(
 input: unknown,
-): FirstMessageValidationResult {
+): MessageValidationResult {
 if (typeof input !== "string") {
 return {
 valid: false,
