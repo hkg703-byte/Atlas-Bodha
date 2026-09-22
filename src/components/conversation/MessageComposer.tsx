@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, KeyboardEvent, useState } from "react";
 
 export function MessageComposer() {
   const [message, setMessage] = useState("");
@@ -17,6 +17,14 @@ export function MessageComposer() {
     console.log("Atlas message:", trimmedMessage);
 
     setMessage("");
+  }
+
+  // Enter sends; Shift+Enter adds a new line. Ignore Enter while an IME is composing.
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+    }
   }
 
   return (
@@ -36,6 +44,9 @@ export function MessageComposer() {
         id="atlas-message"
         value={message}
         onChange={(event) => setMessage(event.target.value)}
+        onKeyDown={handleKeyDown}
+        enterKeyHint="send"
+        autoFocus
         placeholder="Bring what matters to you..."
         rows={1}
         className="min-h-12 flex-1 border-0 bg-transparent p-3 outline-none"

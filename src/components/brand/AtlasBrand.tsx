@@ -10,7 +10,7 @@ export function AtlasBrand() {
         Atlas Bodha
       </p>
 
-      <h1 className="text-5xl font-medium tracking-tight sm:text-6xl">
+      <h1 className="text-4xl font-medium tracking-tight sm:text-6xl">
         Know Thyself
       </h1>
 

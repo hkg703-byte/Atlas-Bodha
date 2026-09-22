@@ -6,9 +6,9 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 sm:py-10">
+    <main className="h-dvh overflow-hidden px-4 sm:px-6">
       <div
-        className="mx-auto flex min-h-[calc(100vh-3rem)] w-full flex-col sm:min-h-[calc(100vh-5rem)]"
+        className="mx-auto flex h-full w-full flex-col"
         style={{
           maxWidth: "var(--atlas-content-width)",
         }}
