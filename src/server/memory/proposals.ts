@@ -19,7 +19,9 @@ export const forbiddenMemoryContent = /\b(suicid\w*|self[- ]?harm|want to die|ki
 export async function proposeMemories(userId:string,sourceMessageId:string) {
  const consent=await memoryConsent(userId);
  const source=(await queryDatabase<{content:string;safety_tier:number|null}>(`SELECT m.content,a.safety_tier FROM messages m JOIN conversations c ON c.id=m.conversation_id JOIN messages a ON a.conversation_id=m.conversation_id AND a.sequence_number=m.sequence_number+1 AND a.role='assistant' WHERE m.id=$1 AND c.user_id=$2 AND m.role='person' AND NOT EXISTS (SELECT 1 FROM messages newer WHERE newer.conversation_id=m.conversation_id AND newer.sequence_number>a.sequence_number)`,[sourceMessageId,userId])).rows[0];
- if(!source || source.safety_tier===null || source.safety_tier>=2 || forbiddenMemoryContent.test(source.content)) return {consent:consent ?? false,proposals:[]};
+  // No memory offers (consent prompt or chips) anywhere in a conversation that has touched tier 2+.
+  const heaviest=(await queryDatabase<{max_tier:number|null}>(`SELECT MAX(a.safety_tier) AS max_tier FROM messages a JOIN messages m ON m.conversation_id=a.conversation_id JOIN conversations c ON c.id=m.conversation_id WHERE m.id=$1 AND c.user_id=$2`,[sourceMessageId,userId])).rows[0]?.max_tier ?? 0;
+  if(!source || source.safety_tier===null || source.safety_tier>=2 || heaviest>=2 || forbiddenMemoryContent.test(source.content)) return {consent:consent ?? false,proposals:[]};
  if(consent!==true) return {consent,proposals:[]};
  const key=`${userId}:${sourceMessageId}`;
  if(!requests.has(key)) {

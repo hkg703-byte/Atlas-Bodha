@@ -7,6 +7,8 @@ export type GenerateResponseInput = {
 systemInstruction: string;
 messages: AiConversationMessage[];
 signal?: AbortSignal;
+  /** low | medium | high. Replies use AI_REASONING_EFFORT (default medium); quick checks stay low. */
+  reasoningEffort?: "low" | "medium" | "high";
 };
 
 export type GenerateResponseResult = {

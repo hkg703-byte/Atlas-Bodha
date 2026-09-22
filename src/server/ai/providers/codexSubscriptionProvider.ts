@@ -67,7 +67,7 @@ text: message.content,
 })),
 stream: true,
 store: false,
-reasoning: { effort: "low" },
+reasoning: { effort: input.reasoningEffort ?? "low" },
 }),
 signal,
 });

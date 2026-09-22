@@ -49,6 +49,7 @@ const safetyTier = await classifySafetyTier(provider, messages, signal);
 signal?.throwIfAborted();
 await onSafety?.(safetyTier);
 const providerStream = await provider.streamResponse({
+reasoningEffort: (["low", "medium", "high"].includes(process.env.AI_REASONING_EFFORT ?? "") ? process.env.AI_REASONING_EFFORT : "medium") as "low" | "medium" | "high",
 systemInstruction: atlasSystemPromptForSafetyTier(safetyTier) + await buildMemoryInstructions(userId),
 messages,
 signal,
