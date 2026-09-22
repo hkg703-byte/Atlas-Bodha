@@ -1,59 +1,68 @@
 # Atlas Bodha handoff
 
-Atlas Bodha is a Next.js conversation app. It stores users, conversations, and messages in PostgreSQL and uses an AI provider for replies.
+Plain-English version first, then the technical details. If you are Holly's Claude or ChatGPT: read this whole file, then `.env.example`.
 
-## Local setup
+## Where things stand (2026-09-22)
 
-Install Node.js 22, copy `.env.example` to `.env.local`, and fill in the values. Then run:
+- Coding Phases steps 1 to 8 are built and tested, plus consent-first memory. Next in the plan is step 9 (conversation history and navigation).
+- Live preview: https://atlasbodha.managedbyai.dev (runs on Josh's server until Holly hosts it herself).
+- The code is this GitHub repo. The data (people, conversations, memories) is Holly's Neon database. Nothing important lives anywhere else.
+
+## Who is who: there is no sign-in right now
+
+On purpose, for the prototype. The first time a browser visits, the app quietly creates a private guest person and gives that browser a session cookie (`atlas_session`, 30 days). That cookie is how Atlas knows it's you: conversations and memories belong to that guest.
+
+Consequences to know:
+- Same browser on the same device = same person, memories included.
+- A different phone or computer, a private window, or clearing cookies = a brand-new person. The old conversations and memories still exist in the database but that browser can't reach them.
+- To make someone the same person across devices, add real accounts later (email magic link or Google sign-in). A password sign-in page still exists at /sign-in from an earlier step, and `npm run user:create` still works, but nothing requires them.
+- Abuse limits: 20 new guests per IP per day (`ATLAS_GUESTS_PER_IP_PER_DAY`), 60 replies per person per day (`ATLAS_DAILY_REPLY_LIMIT`).
+
+## Moving it to your own setup (Vercel is the easiest)
+
+1. Make a free Vercel account by signing in with the GitHub account that owns this repo.
+2. In Vercel: Add New Project, import this repo.
+3. Add these environment variables (see `.env.example` for all of them):
+   - `DATABASE_URL`: your Neon connection string (Neon dashboard, Connect). Same database = everything carries over.
+   - `AI_PROVIDER=openai`
+   - `OPENAI_API_KEY`: from platform.openai.com. Set a monthly spending limit there first.
+   - `AI_MODEL`: a model your OpenAI account offers (the preview uses `gpt-6-luna`, which is a Codex-subscription name and may not exist on your API account).
+   - `AI_REASONING_EFFORT=medium`
+   - `SESSION_SECURE=true`
+4. Deploy. Vercel gives you a web address; connect your own domain in Vercel's Domains settings once you buy it.
+5. Tell Josh, so he can shut down the preview on his server.
+
+The database tables already exist. If you ever point at a fresh database, run `npm run db:migrate` once from a computer with Node 22 and `DATABASE_URL` set.
+
+## Working on the code yourself
 
 ```bash
+git clone <this repo>
+cd Atlas-Bodha
 npm install
-npm run db:migrate
-npm run user:create -- --email you@example.com --name "Your Name"
-npm run dev
+cp .env.example .env.local   # then fill in DATABASE_URL, AI_PROVIDER=openai, OPENAI_API_KEY, AI_MODEL
+npm run dev                  # open http://localhost:3000
 ```
 
-`npm run user:create` asks for a password on the terminal. Avoid putting passwords in shell history. For production use `npm run build && npm run start`.
+`.env.local` holds secrets and is never committed. Run `npm run lint` and `npm run build` before pushing.
 
-## Docker
+## What was built beyond the Coding Phases doc
 
-```bash
-docker build -t atlas-bodha .
-docker run --env-file .env.local -e CODEX_AUTH_FILE=/run/codex/auth.json \
-  -v "$HOME/.config/atlas-bodha/codex-auth:/run/codex:ro" \
-  -p 3000:3000 atlas-bodha
-```
-
-Run migrations and create the first user from a one-off container or trusted shell using the same Neon `DATABASE_URL` before the first launch: `docker run --rm --env-file .env.local atlas-bodha npm run db:migrate`, then `docker run --rm -it --env-file .env.local atlas-bodha npm run user:create -- --email you@example.com --name "Your Name"`. Secrets are environment variables and are not placed in the image. The Codex credentials directory is mounted read-only at `/run/codex`; set `CODEX_AUTH_FILE` if it is mounted elsewhere.
-
-## Vercel or another host
-
-Import the repository into Vercel, set the variables listed in `.env.example`, and deploy. Vercel should use `AI_PROVIDER=openai` with Holly's `OPENAI_API_KEY`; the shared Codex auth file is for the local/Docker deployment and is not a Vercel secret. Run migrations from a trusted shell using the host's Neon `DATABASE_URL`. On another Docker host, use the Docker commands above and expose port 3000. The current live development service runs on pop-server at port 3217; there is no permanent public deployment yet.
-
-## Holly's OpenAI key
-
-Set `AI_PROVIDER=openai` and `OPENAI_API_KEY` in the host environment, then restart or redeploy.
+- Step 5 (sign-in) was missing from the doc; a password version was built, then replaced for the prototype by automatic guest sessions.
+- Safety layer from the Crisis Protocol draft: a separate classifier call rates each person message tier 0 to 3; tier 2 shows the 988 / 741741 card under the reply, tier 3 shows it first; the reply is never blocked. The Crisis Protocol still needs legal and clinical review before real users (California SB 243).
+- AI provider is swappable (`AI_PROVIDER`); the preview uses Josh's Codex subscription, you will use `openai`.
+- Reply style tuning in `src/server/ai/prompts/atlasSystemPrompt.ts` after live testing: plain text, under ~150 words, one question at most, calmer tier-2 wording.
+- Consent-first memory (below), Docker packaging, migration runner.
 
 ## Not built yet
 
-Profiles, sign-up flow, and password reset are not built yet.
+Conversation history list (step 9), accounts across devices, password reset, a minors policy, steps 10 to 13.
 
-## What lives where
+## Technical notes: Docker and the preview server
 
-The application code is in `~/work/atlas-bodha` on pop-server. The existing PostgreSQL database is hosted by Neon; moving the app while keeping the same database connection preserves users and conversation history. Local private settings are in `.env.local`; that file is excluded from Git and Docker. Local subscription credentials are refreshed externally into `~/.config/atlas-bodha/codex-auth/auth.json` and reread for every request. This app does not perform that refresh. Keep the directory mount so refreshed files are visible, and ensure the container's `node` user has read access without making the file public.
+The preview on Josh's server runs the repo `Dockerfile` in a firewalled container with the Codex credentials mounted read-only at `/run/codex` (`CODEX_AUTH_FILE`). That arrangement is Josh's and does not move with the app; on Vercel you use `AI_PROVIDER=openai` instead. On any other Docker host: build the image, pass the env vars, expose port 3000, and put HTTPS in front.
 
-To reproduce the tested local production run:
-
-```bash
-npm ci
-npm run db:migrate
-npm run build
-npm run start -- -H 0.0.0.0 -p 3217
-```
-
-For public hosting, put HTTPS in front of the app and keep `SESSION_SECURE=true`. Vercel provides HTTPS; a Docker host needs its own HTTPS endpoint. The exact local default AI model is `gpt-6-luna`. If Holly's API account uses a different model, set `AI_MODEL` to a model available to that account along with her provider and key. No SDK is required.
-
-The reply allowance is 60 per person over a rolling 24 hours, configurable with `ATLAS_DAILY_REPLY_LIMIT`. In-flight replies reserve a slot so parallel requests cannot bypass it. The temporary developer preview endpoint is also metered so it cannot provide unlimited replies outside the cap. Safety classification uses a separate AI request and is not counted as a second reply. Unfinished or failed replies are never stored as completed assistant messages. Risk tiers are stored on completed messages; classifier reasons are neither logged nor stored.
+The reply allowance is 60 per person over a rolling 24 hours (`ATLAS_DAILY_REPLY_LIMIT`). In-flight replies reserve a slot so parallel requests cannot bypass it. Safety classification is a separate small AI request and does not count as a reply. Unfinished or failed replies are never stored. Risk tiers are stored on completed messages; classifier reasons are neither logged nor stored.
 
 ## Consent-first memory
 
