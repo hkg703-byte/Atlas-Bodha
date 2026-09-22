@@ -36,7 +36,7 @@ Set `AI_PROVIDER=openai` and `OPENAI_API_KEY` in the host environment, then rest
 
 ## Not built yet
 
-Long-term memory across conversations, profiles, sign-up flow, and password reset are not built yet.
+Profiles, sign-up flow, and password reset are not built yet.
 
 ## What lives where
 
@@ -54,3 +54,13 @@ npm run start -- -H 0.0.0.0 -p 3217
 For public hosting, put HTTPS in front of the app and keep `SESSION_SECURE=true`. Vercel provides HTTPS; a Docker host needs its own HTTPS endpoint. The exact local default AI model is `gpt-6-luna`. If Holly's API account uses a different model, set `AI_MODEL` to a model available to that account along with her provider and key. No SDK is required.
 
 The reply allowance is 60 per person over a rolling 24 hours, configurable with `ATLAS_DAILY_REPLY_LIMIT`. In-flight replies reserve a slot so parallel requests cannot bypass it. The temporary developer preview endpoint is also metered so it cannot provide unlimited replies outside the cap. Safety classification uses a separate AI request and is not counted as a second reply. Unfinished or failed replies are never stored as completed assistant messages. Risk tiers are stored on completed messages; classifier reasons are neither logged nor stored.
+
+## Consent-first memory
+
+Memory is off by default. After an eligible completed reply, Atlas offers a short consent prompt. Turning it on allows one small proposal call using only the person's latest message. Up to two selective facts or preferences appear below the reply; each is saved only when the person clicks Remember. Explicit “remember that” requests retain the requested wording and are marked person_request/stated. Other proposals are marked atlas_suggestion and stated or inferred. Tier 2–3 messages, crisis content, diagnoses, and third parties' private details are excluded. Proposal failures never interrupt the reply.
+
+The Memory link opens `/memory`, where the person can review origins, confidence, and dates, edit a memory, permanently delete one, or permanently delete all. Editing makes confidence stated while preserving the original origin. The toggle appends a consent choice. Turning it off keeps saved memories but immediately stops new proposals and excludes memories from future reply instructions. Turn it back on to use saved memories again, or choose Delete all memories to forget them. Deleting memory does not delete its original conversation message; an existing conversation still supplies its own messages as context.
+
+Saved memories live in `memories`, and the append-only consent ledger lives in `consent_records`, in Holly's existing Neon Postgres database. Latest consent governs use. The context builder includes only the newest 30 chosen memories, labeled as personal context, never instructions. Nothing is stored on the container filesystem. Unsaved proposals exist temporarily in process memory (30 minutes), disappear on restart, and are never persisted as memory. `memory_proposal_attempts` stores only message IDs and timestamps to prevent duplicate provider calls; no proposal text. A failed/expired offer is not retried automatically. All memory access is scoped to the authenticated user, with origin checks on mutations.
+
+Migration: `npm run db:migrate` applies `004_memory.sql` once; reruns make no changes. Memory implementation: `src/server/memory`, `src/server/ai/context/buildConversationContext.ts`, `/api/v1/memory`, `/api/v1/memory/proposals`, and `src/components/memory`.

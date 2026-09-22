@@ -1,10 +1,12 @@
 import { AtlasBrand } from "@/components/brand/AtlasBrand";
 import { MessageComposer } from "@/components/conversation/MessageComposer";
 import { AppShell } from "@/components/layout/AppShell";
+import { TopBar } from "@/components/layout/TopBar";
 
 export default function Home() {
   return (
     <AppShell>
+      <TopBar />
       <section className="flex flex-1 flex-col justify-center gap-10 pb-[18vh] sm:gap-12">
         <AtlasBrand />
 

@@ -1,4 +1,4 @@
-import { buildConversationContext } from "@/server/ai/context/buildConversationContext";
+import { buildConversationContext, buildMemoryInstructions } from "@/server/ai/context/buildConversationContext";
 import { getAiProvider } from "@/server/ai/providers/getAiProvider";
 import { atlasSystemPromptForSafetyTier } from "@/server/ai/prompts/atlasSystemPrompt";
 import {
@@ -49,7 +49,7 @@ const safetyTier = await classifySafetyTier(provider, messages, signal);
 signal?.throwIfAborted();
 await onSafety?.(safetyTier);
 const providerStream = await provider.streamResponse({
-systemInstruction: atlasSystemPromptForSafetyTier(safetyTier),
+systemInstruction: atlasSystemPromptForSafetyTier(safetyTier) + await buildMemoryInstructions(userId),
 messages,
 signal,
 });

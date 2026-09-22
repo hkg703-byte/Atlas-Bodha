@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { ConversationExperience } from
 "@/components/conversation/ConversationExperience";
 import { AppShell } from "@/components/layout/AppShell";
+import { TopBar } from "@/components/layout/TopBar";
 import { requireCurrentUser } from "@/server/auth/requireCurrentUser";
 import { findConversationById } from
 "@/server/repositories/conversationRepository";
@@ -32,6 +33,7 @@ user.id,
 );
 return (
 <AppShell>
+<TopBar />
 <ConversationExperience
 conversationId={conversation.id}
 messages={messages.map((message) => ({

@@ -1,5 +1,6 @@
 "use client";
 
+import { MemoryOffer } from "@/components/memory/MemoryOffer";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConversationComposer } from
@@ -169,7 +170,7 @@ export function ConversationExperience({
           aria-live="polite"
           className="space-y-8 py-8"
         >
-          {messages.map((message) => (
+          {messages.map((message, index) => (
             <article
               key={message.id}
               className={message.role === "person"
@@ -185,6 +186,7 @@ export function ConversationExperience({
               {message.role === "assistant" && message.safetyTier === 2 ? (
                 <ResourceCard text={DEFAULT_RESOURCES} />
               ) : null}
+              {message.role === "assistant" && message.id === lastMessage?.id && message.safetyTier !== null && message.safetyTier < 2 && messages[index-1]?.role === "person" ? <MemoryOffer key={messages[index-1].id} sourceMessageId={messages[index-1].id} /> : null}
             </article>
           ))}
 
