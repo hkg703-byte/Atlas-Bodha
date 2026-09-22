@@ -43,7 +43,8 @@ export async function GET(request: Request) {
   });
 
   const session = await createSession(userId);
-  const response = NextResponse.redirect(new URL(next, request.url));
+  // Relative Location: request.url inside the container is 0.0.0.0:3000, not the public host.
+  const response = new NextResponse(null, { status: 307, headers: { Location: next } });
   setSessionCookie(response, session.token, session.expiresAt);
   return response;
 }
