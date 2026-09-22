@@ -103,6 +103,8 @@ setErrorMessage(null);
 }
 }}
 onKeyDown={handleKeyDown}
+enterKeyHint="send"
+autoFocus
 placeholder="Bring what matters to you..."
 rows={1}
 disabled={isSubmitting}
