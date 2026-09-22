@@ -4,8 +4,14 @@ import type { NextResponse } from "next/server";
 import { queryDatabase } from "@/lib/db/query";
 import type { UserRecord } from "@/server/repositories/userRepository";
 
-export const SESSION_COOKIE_NAME = "atlas_session";
-export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? "atlas_session";
+const configuredDays = Number(process.env.SESSION_DURATION_DAYS ?? 30);
+export const SESSION_MAX_AGE_SECONDS = (Number.isFinite(configuredDays) && configuredDays > 0 ? configuredDays : 30) * 24 * 60 * 60;
+// HTTPS is mandatory by default in production. Local HTTP Docker deployments
+// can explicitly opt out; public deployments should leave this unset or true.
+const secureCookie = process.env.SESSION_SECURE === undefined
+  ? process.env.NODE_ENV === "production"
+  : process.env.SESSION_SECURE !== "false";
 
 type SessionUserRow = UserRecord & { expires_at: Date };
 
@@ -81,7 +87,7 @@ export function setSessionCookie(
 ) {
   response.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookie,
     sameSite: "lax",
     path: "/",
     expires: expiresAt,
@@ -91,7 +97,7 @@ export function setSessionCookie(
 export function clearSessionCookie(response: NextResponse) {
   response.cookies.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookie,
     sameSite: "lax",
     path: "/",
     expires: new Date(0),
