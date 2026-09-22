@@ -14,16 +14,6 @@ export function TopBar() {
           Memory
         </Link>
       </nav>
-
-      <form action="/api/auth/sign-out" method="post">
-        <button
-          className="text-sm hover:underline"
-          style={{ color: "var(--atlas-color-text-secondary)" }}
-          type="submit"
-        >
-          Sign out
-        </button>
-      </form>
     </header>
   );
 }
