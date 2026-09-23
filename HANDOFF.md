@@ -8,15 +8,11 @@ Plain-English version first, then the technical details. If you are Holly's Clau
 - Live preview: https://atlasbodha.managedbyai.dev (runs on Josh's server until Holly hosts it herself).
 - The code is this GitHub repo. The data (people, conversations, memories) is Holly's Neon database. Nothing important lives anywhere else.
 
-## Who is who: there is no sign-in right now
+## Sign-in and accounts
 
-On purpose, for the prototype. The first time a browser visits, the app quietly creates a private guest person and gives that browser a session cookie (`atlas_session`, 30 days). That cookie is how Atlas knows it's you: conversations and memories belong to that guest.
+Atlas requires sign-in. Enter an email at `/sign-in`; the same one-time magic-link flow creates new adult accounts and signs existing people in. New account details include an optional first name and required 18+ attestation. Responses do not reveal whether an account already exists. Links expire after 10 minutes and work once. Guest mode has been removed; existing guest records remain in Neon and are not deleted.
 
-Consequences to know:
-- Same browser on the same device = same person, memories included.
-- A different phone or computer, a private window, or clearing cookies = a brand-new person. The old conversations and memories still exist in the database but that browser can't reach them.
-- To make someone the same person across devices, add real accounts later (email magic link or Google sign-in). A password sign-in page still exists at /sign-in from an earlier step, and `npm run user:create` still works, but nothing requires them.
-- Abuse limits: 20 new guests per IP per day (`ATLAS_GUESTS_PER_IP_PER_DAY`), 60 replies per person per day (`ATLAS_DAILY_REPLY_LIMIT`).
+Abuse limits: 3 sign-in link requests per email per 15 minutes, 10 per IP per hour, 50 new accounts per Pacific calendar day (`ATLAS_DAILY_SIGNUP_LIMIT`), 60 replies per person over a rolling 24 hours (`ATLAS_DAILY_REPLY_LIMIT`), and 400 assistant replies globally per Pacific calendar day (`ATLAS_GLOBAL_DAILY_REPLY_LIMIT`).
 
 ## Moving it to your own setup (Vercel is the easiest)
 
@@ -48,7 +44,7 @@ npm run dev                  # open http://localhost:3000
 
 ## What was built beyond the Coding Phases doc
 
-- Step 5 (sign-in) was missing from the doc; a password version was built, then replaced for the prototype by automatic guest sessions.
+- Step 5 uses adult-only email magic-link sign-up and sign-in. Password and guest sign-in have been removed.
 - Safety layer from the Crisis Protocol draft: a separate classifier call rates each person message tier 0 to 3; tier 2 shows the 988 / 741741 card under the reply, tier 3 shows it first; the reply is never blocked. The Crisis Protocol still needs legal and clinical review before real users (California SB 243).
 - AI provider is swappable (`AI_PROVIDER`); the preview uses Josh's Codex subscription, you will use `openai`.
 - Reply style tuning in `src/server/ai/prompts/atlasSystemPrompt.ts` after live testing: plain text, under ~150 words, one question at most, calmer tier-2 wording.
@@ -62,7 +58,7 @@ Conversation history list (step 9), accounts across devices, password reset, a m
 
 The preview on Josh's server runs the repo `Dockerfile` in a firewalled container with the Codex credentials mounted read-only at `/run/codex` (`CODEX_AUTH_FILE`). That arrangement is Josh's and does not move with the app; on Vercel you use `AI_PROVIDER=openai` instead. On any other Docker host: build the image, pass the env vars, expose port 3000, and put HTTPS in front.
 
-The reply allowance is 60 per person over a rolling 24 hours (`ATLAS_DAILY_REPLY_LIMIT`). In-flight replies reserve a slot so parallel requests cannot bypass it. Safety classification is a separate small AI request and does not count as a reply. Unfinished or failed replies are never stored. Risk tiers are stored on completed messages; classifier reasons are neither logged nor stored.
+The reply allowance is 60 per person over a rolling 24 hours (`ATLAS_DAILY_REPLY_LIMIT`) and 400 globally per Pacific calendar day (`ATLAS_GLOBAL_DAILY_REPLY_LIMIT`). In-flight replies reserve a slot so parallel requests cannot bypass it. Safety classification is a separate small AI request and does not count as a reply. Unfinished or failed replies are never stored. Risk tiers are stored on completed messages; classifier reasons are neither logged nor stored.
 
 ## Consent-first memory
 
@@ -73,3 +69,21 @@ The Memory link opens `/memory`, where the person can review origins, confidence
 Saved memories live in `memories`, and the append-only consent ledger lives in `consent_records`, in Holly's existing Neon Postgres database. Latest consent governs use. The context builder includes only the newest 30 chosen memories, labeled as personal context, never instructions. Nothing is stored on the container filesystem. Unsaved proposals exist temporarily in process memory (30 minutes), disappear on restart, and are never persisted as memory. `memory_proposal_attempts` stores only message IDs and timestamps to prevent duplicate provider calls; no proposal text. A failed/expired offer is not retried automatically. All memory access is scoped to the authenticated user, with origin checks on mutations.
 
 Migration: `npm run db:migrate` applies `004_memory.sql` once; reruns make no changes. Memory implementation: `src/server/memory`, `src/server/ai/context/buildConversationContext.ts`, `/api/v1/memory`, `/api/v1/memory/proposals`, and `src/components/memory`.
+
+## Email sign-up and sign-in
+
+Set `APP_BASE_URL` to the public HTTPS origin, `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `EMAIL_FROM_NAME=Atlas Bodha`, and `EMAIL_FROM_ADDRESS=atlas@managedbyai.dev`. The local Brevo credential file is `~/.config/atlas-bodha/brevo.env`; it is private and must be loaded into the process environment by the launcher, never committed. Next automatically loads `.env.local`, not that separate file.
+
+`/sign-in` always displays email, optional first name, and the required “I'm 18 or older” attestation. New and returning people receive the same response. The first name and attestation timestamp travel with the hashed token record and are stored on the user when created. Existing password identities attach an email identity to the same user; their history and memories stay intact. Password credentials remain in the database solely for preservation, with no password login endpoint.
+
+Links contain 32 random bytes, last 10 minutes and work once. Only SHA-256 hashes are stored. Verification, identity creation and session creation commit together. The database enforces 3 requests per email per 15 minutes and 10 per IP per hour, including failed delivery attempts. A trusted reverse proxy must overwrite `X-Forwarded-For` before setting `TRUST_PROXY_IP=true`; otherwise all requests safely share a single IP bucket. Never enable that option on a directly exposed server. The daily signup cap (`ATLAS_DAILY_SIGNUP_LIMIT`, default 50) uses the Pacific calendar day and serializes account creation. Existing users can still sign in when signup is capped. Admin CLI creation also counts toward the next web signup check.
+
+For local development only, `EMAIL_PROVIDER=console` prints the link to server stdout. It refuses to run in production. Never save or share these logs. Development HTTP request logging is disabled so verification URLs are not logged independently of the provider. Configure hosting/proxy access logs to redact query strings for `/auth/verify`; do not collect these URLs in analytics. Verification responses use no-store and no-referrer and redirect immediately to a clean URL.
+
+Holly can use her own Brevo key and verified sender by changing environment variables and restarting. To swap providers without code changes, set `EMAIL_PROVIDER=resend` plus `RESEND_API_KEY`, or `EMAIL_PROVIDER=postmark` plus `POSTMARK_SERVER_TOKEN`; keep the same `EMAIL_FROM_*` variables and verify that sender with the chosen service. The small `EmailSender` interface in `src/server/email/emailSender.ts` isolates delivery from authentication.
+
+`ATLAS_GLOBAL_DAILY_REPLY_LIMIT` defaults to 400 across all users, alongside the existing per-user cap. In-flight replies reserve capacity. At capacity the app says “Atlas is resting” and asks the person to return later. `AI_REASONING_EFFORT=low|medium|high` selects reply reasoning, default `medium`; safety classification and memory proposals stay `low`. `AI_MODEL` remains `gpt-6-luna` by default.
+
+Migration `005_magic_links.sql` is additive and preserves all existing data. Apply with `npm run db:migrate`; reruns are no-ops.
+
+Email delivery uses `EMAIL_PROVIDER=brevo` by default. Holly can change it to `resend` or `postmark` and provide the matching provider key, or use `console` only in local development. Set `APP_BASE_URL` to the public HTTPS origin.

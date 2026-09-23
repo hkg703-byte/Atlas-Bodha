@@ -38,13 +38,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const guestUrl = new URL("/api/auth/guest", request.url);
-  guestUrl.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
-  return NextResponse.redirect(guestUrl);
+  const signInUrl = new URL("/sign-in", request.url);
+  signInUrl.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
+  return NextResponse.redirect(signInUrl);
 }
 
 export const config = {
   matcher: [
-    "/((?!sign-in$|api/auth/sign-in$|api/auth/guest$|_next/static|_next/image).*)",
+    "/((?!sign-in$|auth/verify$|api/auth/sign-in$|_next/static|_next/image).*)",
   ],
 };

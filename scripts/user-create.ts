@@ -1,9 +1,7 @@
-import { stdin, stderr } from "node:process";
 import { loadEnvConfig } from "@next/env";
 import { Pool } from "pg";
-import { hashPassword } from "../src/server/auth/password";
 
-type Arguments = { email: string; name: string; password?: string };
+type Arguments = { email: string; name?: string };
 
 function readArguments(): Arguments {
   const values = new Map<string, string>();
@@ -21,61 +19,17 @@ function readArguments(): Arguments {
   }
 
   const email = values.get("email")?.trim().toLowerCase();
-  const name = values.get("name")?.trim();
-  if (!email || !name) {
-    throw new Error("Usage: npm run user:create -- --email <email> --name <name> [--password <password>]");
+  const name = values.get("name")?.trim() || undefined;
+  if (!email) {
+    throw new Error("Usage: npm run user:create -- --email <email> [--name <name>]");
   }
 
-  return { email, name, password: values.get("password") };
-}
-
-async function readPassword(): Promise<string> {
-  stderr.write("Password: ");
-
-  if (!stdin.isTTY) {
-    let input = "";
-    for await (const chunk of stdin) input += chunk.toString();
-    stderr.write("\n");
-    return input.replace(/[\r\n]+$/, "");
-  }
-
-  stdin.setRawMode(true);
-  stdin.resume();
-  stdin.setEncoding("utf8");
-
-  return new Promise((resolve, reject) => {
-    let password = "";
-    const cleanup = () => {
-      stdin.setRawMode(false);
-      stdin.pause();
-      stderr.write("\n");
-    };
-
-    stdin.on("data", function onData(character: string) {
-      if (character === "\r" || character === "\n") {
-        stdin.off("data", onData);
-        cleanup();
-        resolve(password);
-      } else if (character === "\u0003") {
-        stdin.off("data", onData);
-        cleanup();
-        reject(new Error("Cancelled"));
-      } else if (character === "\u007f") {
-        password = password.slice(0, -1);
-      } else {
-        password += character;
-      }
-    });
-  });
+  return { email, name };
 }
 
 async function main() {
   loadEnvConfig(process.cwd());
   const args = readArguments();
-  const password = args.password ?? (await readPassword());
-  if (password.length < 12) {
-    throw new Error("Password must be at least 12 characters");
-  }
 
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is required");
@@ -88,28 +42,63 @@ async function main() {
     throw new Error("Refusing to connect: DATABASE_URL is not a Neon database");
   }
 
-  const { salt, hash } = await hashPassword(password);
   const pool = new Pool({ connectionString, max: 1 });
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
-    const userResult = await client.query<{ id: string }>(
-      "INSERT INTO users DEFAULT VALUES RETURNING id;",
-    );
     await client.query(
-      `
-        INSERT INTO external_identities
-          (user_id, provider, subject, display_name, password_salt, password_hash)
-        VALUES ($1, 'password', $2, $3, $4, $5);
-      `,
-      [userResult.rows[0].id, args.email, args.name, salt, hash],
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      [`atlas-email:${args.email}`],
     );
+
+    const identities = await client.query<{ user_id: string; display_name: string }>(
+      `
+        SELECT user_id, display_name
+        FROM external_identities
+        WHERE provider IN ('email', 'password')
+          AND lower(subject) = $1
+        ORDER BY CASE provider WHEN 'email' THEN 0 ELSE 1 END;
+      `,
+      [args.email],
+    );
+
+    const userIds = new Set(identities.rows.map((identity) => identity.user_id));
+    if (userIds.size > 1) {
+      throw new Error("Conflicting identities already exist for this email");
+    }
+
+    let userId = identities.rows[0]?.user_id;
+    let createdUser = false;
+    if (!userId) {
+      const userResult = await client.query<{ id: string }>(
+        "INSERT INTO users DEFAULT VALUES RETURNING id;",
+      );
+      userId = userResult.rows[0].id;
+      createdUser = true;
+    }
+
+    const existingEmailIdentity = await client.query(
+      `SELECT 1 FROM external_identities WHERE provider = 'email' AND lower(subject) = $1`,
+      [args.email],
+    );
+    if (existingEmailIdentity.rowCount === 0) {
+      await client.query(
+        `
+          INSERT INTO external_identities (user_id, provider, subject, display_name)
+          VALUES ($1, 'email', $2, $3);
+        `,
+        [userId, args.email, args.name ?? identities.rows[0]?.display_name ?? args.email],
+      );
+    }
+
     await client.query("COMMIT");
-    process.stdout.write(`Created Atlas Bodha user ${args.email}\n`);
-  } catch {
+    process.stdout.write(
+      `${createdUser ? "Created" : "Reused"} Atlas Bodha user ${args.email}\n`,
+    );
+  } catch (error) {
     await client.query("ROLLBACK");
-    throw new Error("User creation failed");
+    throw error;
   } finally {
     client.release();
     await pool.end();

@@ -24,7 +24,7 @@ export async function POST(request: Request, context: RouteContext) {
         emit({ type: "start" });
         if (reservation.state !== "reserved") {
           if (reservation.state === "complete") emit({ type: "complete" });
-          else emit({ type: "error", message: reservation.state === "limit" ? LIMIT_MESSAGE : "Atlas is already responding. Please wait a moment." });
+          else emit({ type: "error", message: reservation.state === "limit" ? LIMIT_MESSAGE : reservation.state === "resting" ? RESTING_MESSAGE : "Atlas is already responding. Please wait a moment." });
           return;
         }
         const { stream: aiStream, safetyTier } = await streamAssistantResponse({

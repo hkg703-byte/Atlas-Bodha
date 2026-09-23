@@ -18,6 +18,11 @@ async function main() {
   assert.equal(capped.state,'limit');
   console.log('Usage cap at configured 0: blocked before orchestration/provider');
   process.env.ATLAS_DAILY_REPLY_LIMIT='60';
+  process.env.ATLAS_GLOBAL_DAILY_REPLY_LIMIT='0';
+  const globallyCapped=await reserveAssistantGeneration(userId,conversationId);
+  assert.equal(globallyCapped.state,'resting');
+  console.log('Global usage cap at configured 0: blocked with resting state');
+  process.env.ATLAS_GLOBAL_DAILY_REPLY_LIMIT='1000000000';
   const attempts=await Promise.all([reserveAssistantGeneration(userId,conversationId),reserveAssistantGeneration(userId,conversationId)]);
   assert.equal(attempts.filter(r=>r.state==='reserved').length,1);
   assert.equal(attempts.filter(r=>r.state==='busy').length,1);

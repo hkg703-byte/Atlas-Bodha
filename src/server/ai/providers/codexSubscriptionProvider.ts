@@ -6,6 +6,7 @@ AiProvider,
 GenerateResponseInput,
 GenerateResponseResult,
 } from "@/server/ai/providers/aiProvider";
+import { replyReasoningEffort } from "@/server/ai/providers/aiProvider";
 import {
 ensureProviderResponse,
 readResponsesApiText,
@@ -67,7 +68,7 @@ text: message.content,
 })),
 stream: true,
 store: false,
-reasoning: { effort: input.reasoningEffort ?? "low" },
+reasoning: { effort: input.reasoningEffort ?? replyReasoningEffort() },
 }),
 signal,
 });

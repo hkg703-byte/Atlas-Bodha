@@ -75,6 +75,7 @@ const result = await provider.generateResponse({
 systemInstruction: CLASSIFIER_INSTRUCTION,
 messages: recentMessages,
 signal,
+reasoningEffort: "low",
 });
 const classified = parseClassifierTier(result.text);
 return classified === null ? floor : (Math.max(classified, floor) as SafetyTier);

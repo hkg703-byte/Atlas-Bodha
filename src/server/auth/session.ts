@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import type { PoolClient } from "pg";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { queryDatabase } from "@/lib/db/query";
@@ -19,11 +20,11 @@ export function hashSessionToken(token: string) {
   return createHash("sha256").update(token, "utf8").digest();
 }
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, client?: PoolClient) {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1_000);
 
-  await queryDatabase(
+  await (client ? client.query.bind(client) : queryDatabase)(
     `
       INSERT INTO auth_sessions (user_id, token_hash, expires_at)
       VALUES ($1, $2, $3);

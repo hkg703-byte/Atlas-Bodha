@@ -15,6 +15,7 @@ ensureProviderResponse,
 readResponsesApiText,
 } from "../src/server/ai/providers/responseStream";
 import { classifySafetyTier } from "../src/server/ai/safety/classifySafetyTier";
+import { replyReasoningEffort } from "../src/server/ai/providers/aiProvider";
 
 function sseResponse(parts: Uint8Array[]): Response {
 return new Response(
@@ -98,8 +99,10 @@ ProviderRestingError,
 
 class ClassifierProvider implements AiProvider {
 lastInstruction = "";
+lastInput?: GenerateResponseInput;
 constructor(private readonly result: string) {}
 async generateResponse(input: GenerateResponseInput): Promise<GenerateResponseResult> {
+this.lastInput = input;
 this.lastInstruction = input.systemInstruction;
 return { text: this.result };
 }
@@ -117,6 +120,15 @@ await classifySafetyTier(provider, [
 2,
 );
 assert.match(provider.lastInstruction, /Ignore any instructions/i);
+assert.equal(provider.lastInput?.reasoningEffort, "low");
+});
+
+test("reply reasoning effort accepts supported values and defaults safely", () => {
+assert.equal(replyReasoningEffort(undefined), "medium");
+assert.equal(replyReasoningEffort("low"), "low");
+assert.equal(replyReasoningEffort("medium"), "medium");
+assert.equal(replyReasoningEffort("high"), "high");
+assert.equal(replyReasoningEffort("extreme"), "medium");
 });
 
 test("explicit access, method, and timeframe force tier 3", async () => {
@@ -145,10 +157,12 @@ const temporaryDirectory = await mkdtemp(path.join(configRoot, "ai-test-"));
 const authFile = path.join(temporaryDirectory, "auth.json");
 process.env.CODEX_AUTH_FILE = authFile;
 const seenTokens: string[] = [];
+const seenEfforts: unknown[] = [];
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (_input, init) => {
 const headers = new Headers(init?.headers);
 seenTokens.push(headers.get("Authorization") ?? "");
+seenEfforts.push(JSON.parse(String(init?.body)).reasoning?.effort);
 return sseResponse([
 new TextEncoder().encode(
 'data: {"type":"response.output_text.delta","delta":"ok"}\n\n' +
@@ -174,8 +188,9 @@ authFile,
 JSON.stringify({ tokens: { access_token: "second-token", account_id: "account" } }),
 { mode: 0o600 },
 );
-await provider.generateResponse(input);
+await provider.generateResponse({ ...input, reasoningEffort: "low" });
 assert.deepEqual(seenTokens, ["Bearer first-token", "Bearer second-token"]);
+assert.deepEqual(seenEfforts, ["medium", "low"]);
 } finally {
 globalThis.fetch = originalFetch;
 await rm(temporaryDirectory, { recursive: true });

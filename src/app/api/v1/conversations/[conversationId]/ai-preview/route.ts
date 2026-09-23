@@ -11,7 +11,7 @@ export async function POST(request: Request, context: { params: Promise<{ conver
   const { conversationId } = await context.params;
   if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return Response.json({ error: { message: "Conversation not found." } }, { status: 404 });
   const result = await reserveAssistantGeneration(user.id, conversationId, "preview");
-  if (result.state !== "reserved") return Response.json({ error: { message: result.state === "limit" ? LIMIT_MESSAGE : "Atlas could not begin the response." } }, { status: result.state === "missing" ? 404 : 409 });
+  if (result.state !== "reserved") return Response.json({ error: { message: result.state === "limit" ? LIMIT_MESSAGE : result.state === "resting" ? RESTING_MESSAGE : "Atlas could not begin the response." } }, { status: result.state === "missing" ? 404 : 409 });
   try {
     const generated = await generateAssistantResponse({ userId: user.id, conversationId });
     await finishGeneration(result.reservation.id, "completed");
